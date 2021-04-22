@@ -9,19 +9,19 @@ import binascii
 ICMP_ECHO_REQUEST = 8
 
 
-def checksum(string):
+def checksum(str):
     csum = 0
-    countTo = (len(string) // 2) * 2
-    count = 0
+    countTo = (len(str) / 2) * 2
 
+    count = 0
     while count < countTo:
-        thisVal = ord(string[count+1]) * 256 + ord(string[count])
+        thisVal = str[count+1] * 256 + str[count]
         csum = csum + thisVal
         csum = csum & 0xffffffff
         count = count + 2
 
-    if countTo < len(string):
-        csum = csum + ord(string[len(string) - 1])
+    if countTo < len(str):
+        csum = csum + ord(str[len(str) - 1])
         csum = csum & 0xffffffff
 
     csum = (csum >> 16) + (csum & 0xffff)
@@ -47,6 +47,12 @@ def receiveOnePing(mySocket, ID, timeout, destAddr):
 
         # Fill in start
         # Fetch the ICMP header from the IP packet
+        type, code, checksum, packetID, seq = struct.unpack(
+            'bbHHh', recPacket[20:28])
+        if type != 8 and packetID == ID:
+            doubleBytes = struct.calcsize("d")
+            sentTime = struct.unpack("d", recPacket[28:28 + doubleBytes])[0]
+            return timeReceived - sentTime
         # Fill in end
         timeLeft = timeLeft - howLongInSelect
         if timeLeft <= 0:
@@ -62,7 +68,7 @@ def sendOnePing(mySocket, destAddr, ID):
     header = struct.pack("bbHHh", ICMP_ECHO_REQUEST, 0, myChecksum, ID, 1)
     data = struct.pack("d", time.time())
     # Calculate the checksum on the data and the dummy header.
-    myChecksum = checksum(str(header + data))
+    myChecksum = checksum(header + data)
 
     # Get the right checksum, and put in the header
     if sys.platform == 'darwin':
@@ -100,6 +106,7 @@ def ping(host, timeout=1):
     dest = gethostbyname(host)
     print("Pinging " + dest + " using Python:")
     print("")
+
     # Send ping requests to a server separated by approximately one second
     while 1:
         delay = doOnePing(dest, timeout)
@@ -107,5 +114,22 @@ def ping(host, timeout=1):
         time.sleep(1)  # one second
     return delay
 
+# Testing hosts that are on four different continents
+# Just uncomment one ping(...) function at a time as
+# only one can be executed at a time due to skeleton code.
 
-ping("google.com")
+# Pinging Local target host (USA/NA)
+# ping("127.0.0.1")
+
+# Pinging Google (USA/NA)
+# ping("google.com")
+
+# Pinging University of Sao Paulo (Brazil/SA)
+# ping("usp.br")
+
+
+# Pinging Onsen Radio Site (Japan/Asia)
+ping("onsen.ag")
+
+# Pinging UK Domain Name Services (England/Europe)
+# ping("nominet.uk")
